@@ -1,27 +1,25 @@
-# From: https://www.hackster.io/shilleh/connect-mpu-6050-to-raspberry-pi-pico-w-7f3345
+from machine import Pin, PWM
+import time
 
-import machine
-# Shows Pi is on by turning on LED when plugged in
-LED = machine.Pin("LED", machine.Pin.OUT)
-LED.on()
+# Configura o pino GP15 como PWM
+servo = PWM(Pin(16))
+servo.freq(50)  # Frequência padrão para servos: 50Hz
 
-
-from imu import MPU6050
-from time import sleep
-from machine import Pin, I2C
-
-
-# i2c = I2C(1, sda=Pin(6), scl=Pin(7), freq=400000) # XIAO RP2040
-i2c = I2C(0, sda=Pin(0), scl=Pin(1), freq=400000) # Pico
-imu = MPU6050(i2c)
-
+def mover_servo(angulo):
+    # Conversão: ângulo 0-180 para ciclo duty entre 1638 (0.5ms) e 8191 (2.5ms)
+    min_duty = 1638
+    max_duty = 8191
+    duty = int(min_duty + (angulo / 180) * (max_duty - min_duty))
+    servo.duty_u16(duty)
+    print(f"Servo movido para {angulo} graus")
 
 while True:
-	ax=round(imu.accel.x,2)
-	ay=round(imu.accel.y,2)
-	az=round(imu.accel.z,2)
-	gx=round(imu.gyro.x)
-	gy=round(imu.gyro.y)
-	gz=round(imu.gyro.z)
-	print("ax",ax,"\t","ay",ay,"\t","az",az,"\t","gx",gx,"\t","gy",gy,"\t","gz",gz,"\t","        ",end="\r")
-	sleep(0.2)
+    # Vai de 0 até 180 graus
+    for angulo in range(0, 181, 1):
+        mover_servo(angulo)
+        time.sleep(0.02)
+    
+    # Volta de 180 até 0 graus
+    for angulo in range(180, -1, -1):
+        mover_servo(angulo)
+        time.sleep(0.02)
