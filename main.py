@@ -7,6 +7,7 @@ from imu import MPU6050
 from time import sleep
 import math
 
+
 # LED para indicar funcionamento
 LED = machine.Pin("LED", machine.Pin.OUT)
 LED.on()
@@ -18,6 +19,11 @@ imu = MPU6050(i2c)
 # Configuração do Servo Motor no pino GP16
 servo = PWM(Pin(16))
 servo.freq(50)  # Frequência padrão para servos: 50Hz
+
+def mapear_valor(valor):
+    valor = max(min(valor, 90), -90)  # Limita entre -90 e 90
+    return int(5000 + (valor / 90) * 4000)  # Mapeia para 5000-15000us
+
 
 def mover_servo(angulo):
     """
@@ -57,6 +63,8 @@ print("Pressione Ctrl+C para parar")
 posicao_servo = 90  # Posição inicial central
 sensibilidade = 0.8  # Ajuste a sensibilidade conforme necessário
 
+
+ultimo_valor = 0  # Para controle de movimento suave
 try:
     while True:
         # Lê os dados do sensor
@@ -67,20 +75,16 @@ try:
         gy = round(imu.gyro.y)  # Usaremos este eixo para controlar o servo
         gz = round(imu.gyro.z)
         
-        # Converte giroscópio Y para posição do servo
-        nova_posicao = mapear_gyro_para_servo(gy, sensibilidade)
+        giro = gy   
         
-        # Aplica um filtro simples para suavizar o movimento
-        posicao_servo = (posicao_servo * 0.8) + (nova_posicao * 0.2)
-        posicao_servo = round(posicao_servo)
+        if abs(giro) > 1:
+            ultimo_valor += giro * 0.02  # Acumula o valor do giroscópio para suavizar o movimento
+            ultimo_valor = max(min(ultimo_valor, 90), -90)
         
-        # Move o servo
-        angulo_real = mover_servo(posicao_servo)
+        duty = mapear_valor(ultimo_valor)
+        servo.duty_u16(duty)
+        sleep(0.02)  # Aguarda um pouco para evitar sobrecarga
         
-        # Exibe informações
-        print(f"Gyro Y: {gy:6} | Servo: {angulo_real:3}° | Accel: X:{ax:6.2f} Y:{ay:6.2f} Z:{az:6.2f}")
-        
-        sleep(0.05)  # Atualização mais rápida para controle suave
 
 except KeyboardInterrupt:
     print("\nParando sistema...")
